@@ -1311,8 +1311,8 @@ const todosLoaded = loadTodosFromStorage();
 if (todosLoaded) render();
 initSimulation();
 render();
-initTodoCanvas();
-window.addEventListener('resize', () => { getSize(); render(); getTodoSize(); renderTodo(); });
+try { initTodoCanvas(); } catch(e) { console.error('initTodoCanvas failed:', e); toast('⚠️ 待办画布初始化失败: ' + e.message); }
+window.addEventListener('resize', () => { getSize(); render(); try { getTodoSize(); renderTodo(); } catch(e) {} });
 
 // =============== Tab 切换 ===============
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1337,9 +1337,10 @@ let todoSvg, todoG, todoSimulation, todoWidth, todoHeight, todoZoom;
 
 function getTodoSize() {
   const wrap = document.getElementById('todoCanvasWrap');
+  if (!wrap) return;
   todoWidth = wrap.clientWidth;
   todoHeight = wrap.clientHeight;
-  todoSvg.attr('viewBox', [0, 0, todoWidth, todoHeight]);
+  if (todoSvg) todoSvg.attr('viewBox', [0, 0, todoWidth, todoHeight]);
 }
 
 function getTodoData() {

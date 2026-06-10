@@ -598,7 +598,7 @@ function initUI() {
   document.getElementById('btnAddTodo3').onclick = openAddTodoModal;
   document.getElementById('btnAddSub3').onclick = openAddSubModal;
   document.getElementById('btnDone3').onclick = toggleDoneStatus;
-  document.getElementById('btnSyncTodos3').onclick = saveTodos;
+  document.getElementById('btnSyncTodos3').onclick = downloadTodosJson;
 }
 
 // =============== D3 画布 ===============
@@ -1053,7 +1053,7 @@ function confirmAddTodo() {
   graphData.links.push({ source: TODO_BOSS_ID, target: id, label: '派发' });
   closeModal('addTodoModal');
   render();
-  saveTodos();
+  saveTodosLocal();
   // v3.7 单画布：自动切到"只看待办"tab 让老大立刻看到新加的
   todoOnly = true;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1096,7 +1096,7 @@ function confirmAddSub() {
   graphData.links.push({ source: selectedNode.id, target: id, label: '分解' });
   closeModal('addSubModal');
   render();
-  saveTodos();
+  saveTodosLocal();
   toast('✅ 子任务已添加');
 }
 
@@ -1117,12 +1117,13 @@ function toggleDoneStatus() {
     node.cat = STATUS_CAT_MAP[node.status];
   }
   render();
-  saveTodos();
+  saveTodosLocal();
   toast('✔ 状态已更新：' + node.status);
 }
 
 // =============== 同步到 todos.json ===============
-function saveTodos() {
+// v3.7.2 拆分：saveTodosLocal 只写 localStorage，downloadTodosJson 真的下载
+function buildTodosData() {
   // 只同步待办相关节点（boss/todo/done/hold/subtask）
   const todoNodes = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat));
   const todoLinks = graphData.links.filter(l => {
@@ -1132,15 +1133,25 @@ function saveTodos() {
     const tn = graphData.nodes.find(n => n.id === t);
     return sn && tn && ['boss', 'todo', 'done', 'hold', 'subtask'].includes(sn.cat);
   });
-  const data = {
+  return {
     version: 1,
     updatedAt: new Date().toISOString(),
     nodes: todoNodes,
     links: todoLinks
   };
-  // 写到 localStorage（前端持久化）
+}
+
+function saveTodosLocal() {
+  // 只写 localStorage，不下载（任何增删改状态都调这个）
+  const data = buildTodosData();
   localStorage.setItem('xiaoling_kanban_todos', JSON.stringify(data));
-  // 触发下载（老大可以下载后发我，或者用 GitHub API 推上去）
+}
+
+function downloadTodosJson() {
+  // 真的触发下载（只有 💾 同步按钮才调这个）
+  const data = buildTodosData();
+  // 同步刷一下 localStorage 保证最新
+  localStorage.setItem('xiaoling_kanban_todos', JSON.stringify(data));
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

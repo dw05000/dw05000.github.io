@@ -324,8 +324,8 @@ svg{width:100%;height:100%;display:block}
 
 <!-- 顶部 Tab 切换器（v3.7 单画布：tab 只切"看全部 / 只看待办"过滤，不再动画布） -->
 <div id="tabBar">
-  <button class="tab-btn active" data-tab="graph">🧠 脑图（全部）</button>
-  <button class="tab-btn" data-tab="todo">📋 只看待办</button>
+  <button class="tab-btn active" data-tab="graph">🧠 知识图谱（全部）</button>
+  <button class="tab-btn" data-tab="todo">📋 任务管理</button>
   <span class="tab-right">💡 工具栏顶部 4 个按钮：添加主任务/子任务/完成/同步</span>
 </div>
 
@@ -356,11 +356,11 @@ svg{width:100%;height:100%;display:block}
 
 <!-- 图例（两个独立 div，各自绑到对应画布上，不堆一起） -->
 <div id="legendGraph" class="legend-pane legend-graph-active">
-  <h3>🧠 脑图分类</h3>
+  <h3>🧠 知识图谱分类</h3>
   <div id="legendGraphItems"></div>
 </div>
 <div id="legendTodo" class="legend-pane">
-  <h3>📋 待办状态</h3>
+  <h3>📋 任务管理状态</h3>
   <div id="legendTodoItems"></div>
 </div>
 
@@ -1053,6 +1053,8 @@ function confirmAddLink() {
 
 // =============== 老大待办（脑图） ===============
 const STATUS_CAT_MAP = { doing: 'todo', done: 'done', hold: 'hold' };
+// 子任务状态→cat 映射：避免 toggleDoneStatus 后 cat 不变、颜色不变
+const SUBTASK_STATUS_CAT_MAP = { doing: 'subtask', done: 'done' };
 const TODO_BOSS_ID = 'boss';
 
 // 📋 打开添加主任务模态框
@@ -1137,8 +1139,11 @@ function toggleDoneStatus() {
     return;
   }
   const node = graphData.nodes.find(n => n.id === selectedNode.id);
-  if (node.cat === 'subtask') {
+  // 用 parent 字段判断子任务（比 cat 稳定：toggle 后 cat 会变成 done/subtask，parent 不变）
+  const isSubtask = !!node.parent;
+  if (isSubtask) {
     node.status = node.status === 'done' ? 'doing' : 'done';
+    node.cat = SUBTASK_STATUS_CAT_MAP[node.status];
   } else {
     const order = ['doing', 'done', 'hold'];
     const i = order.indexOf(node.status);

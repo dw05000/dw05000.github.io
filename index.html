@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>小灵的看板 v3.6 · 项目与知识图谱</title>
+<title>小灵的看板 v3.7 · 项目与知识图谱</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#1a1b26;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;color:#c0caf5;display:flex;flex-direction:column;height:100vh}
@@ -545,6 +545,8 @@ let selectedLink = null;
 let linkMode = false;
 let linkSource = null;
 let searchQuery = '';
+// v3.7 单画布：todoOnly 必须放在所有使用它的函数之前（避免 TDZ 死区）
+let todoOnly = false;
 let catFilterVal = 'all';
 let matchedIds = null; // null = show all
 
@@ -1343,7 +1345,7 @@ render();
 window.addEventListener('resize', () => { getSize(); render(); });
 
 // =============== Tab 切换（v3.7：单画布，tab 只切"全部/待办"过滤） ===============
-let todoOnly = false;  // 当前是否只显示待办节点
+// todoOnly 已在前面声明（line 549），避免 TDZ 死区
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.onclick = () => {
     const tab = btn.dataset.tab;

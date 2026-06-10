@@ -686,10 +686,11 @@ function render() {
     return node ? categories[node.cat]?.color || '#414868' : '#414868';
   });
 
-  // 连线标签
+  // 连线标签（v3.7.4：用 visibleLinks 而不是 graphData.links，否则切"只看待办"时
+  // 标签会保留全部连线文字，节点和连线都已隐藏但标签还飘着）
   linkLabelGroup = g.selectAll('.link-labels').data([null]);
   linkLabelGroup = linkLabelGroup.enter().append('g').attr('class','link-labels').merge(linkLabelGroup);
-  let ll = linkLabelGroup.selectAll('text').data(graphData.links, getLinkKey);
+  let ll = linkLabelGroup.selectAll('text').data(visibleLinks, getLinkKey);
   ll.exit().remove();
   ll = ll.enter().append('text').attr('class','link-label').attr('font-size', 9)
     .merge(ll).text(d => d.label);

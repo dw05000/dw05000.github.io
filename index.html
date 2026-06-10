@@ -1304,6 +1304,11 @@ savePanel = function() {
 };
 
 // =============== 启动 ===============
+// 关键修复：let 声明必须在 启动代码 之前（TDZ 死区）
+let todoSvg, todoG, todoSimulation, todoWidth, todoHeight, todoZoom;
+let todoSelectedNode = null;
+let todoLastClickedNode = null;
+
 getSize();
 initUI();
 const loaded = autoLoad();
@@ -1313,7 +1318,7 @@ if (todosLoaded) render();
 initSimulation();
 render();
 try { initTodoCanvas(); } catch(e) { console.error('initTodoCanvas failed:', e); toast('⚠️ 待办画布初始化失败: ' + e.message); }
-// 启动时也跑一次 renderTodo（在 paneTodo 隐藏时也行，d3 在隐藏元素上能 work）
+// 启动时也跑一次 renderTodo
 try {
   getTodoSize();
   renderTodo();
@@ -1353,7 +1358,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // =============== 独立待办画布（脑图样式但只显示待办节点） ===============
-let todoSvg, todoG, todoSimulation, todoWidth, todoHeight, todoZoom;
+// let 声明已移到 启动代码 之前（避免 TDZ 报错）
 
 function getTodoSize() {
   const wrap = document.getElementById('todoCanvasWrap');
@@ -1400,8 +1405,7 @@ function initTodoCanvas() {
   document.getElementById('btnSyncTodos3').onclick = () => saveTodos();
 }
 
-let todoSelectedNode = null;
-let todoLastClickedNode = null;
+// todoSelectedNode / todoLastClickedNode 已在 启动代码 前声明
 
 function renderTodo() {
   const data = getTodoData();

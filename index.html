@@ -1317,7 +1317,21 @@ try { initTodoCanvas(); } catch(e) { console.error('initTodoCanvas failed:', e);
 try {
   getTodoSize();
   renderTodo();
-} catch(e) { console.error('初始 renderTodo failed:', e); }
+} catch(e) { console.error('初始 renderTodo failed:', e); toast('⚠️ renderTodo 失败: ' + e.message); }
+// 🔍 诊断：显示当前数据状态
+setTimeout(() => {
+  const todoCount = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat)).length;
+  const totalCount = graphData.nodes.length;
+  console.log('🔍 诊断信息:');
+  console.log('  总节点数:', totalCount);
+  console.log('  待办节点数:', todoCount);
+  console.log('  脑图 categories:', Object.keys(categories).length);
+  console.log('  待办画布 SVG:', document.getElementById('todoGraph') ? '存在' : '缺失');
+  console.log('  待办画布 wrap:', document.getElementById('todoCanvasWrap') ? '存在' : '缺失');
+  console.log('  todoSvg 对象:', typeof todoSvg);
+  console.log('  todoG 对象:', typeof todoG);
+  toast('🔍 总节点: ' + totalCount + ' / 待办: ' + todoCount);
+}, 500);
 window.addEventListener('resize', () => { getSize(); render(); try { getTodoSize(); renderTodo(); } catch(e) {} });
 
 // =============== Tab 切换 ===============

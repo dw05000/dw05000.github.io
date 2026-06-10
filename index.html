@@ -1223,14 +1223,19 @@ function deleteNode(id) {
   selectedNode = null;
   closePanel();
   render();
+  // v3.7.3：删除待办节点/连线也要持久化（避免刷新后回来）
+  if (id && (id.startsWith('todo_') || id.startsWith('sub_') || id === 'boss')) saveTodosLocal();
   toast('🗑 节点已删除');
 }
 
 function deleteLink() {
-  const idx = graphData.links.indexOf(selectedLink);
+  const deletedLink = selectedLink;
+  const idx = graphData.links.indexOf(deletedLink);
   if (idx >= 0) graphData.links.splice(idx, 1);
   selectedLink = null;
   render();
+  // v3.7.3：删除待办连线也持久化（判断的是删除前的 link）
+  if (deletedLink && deletedLink.label && ['派发', '分解'].includes(deletedLink.label)) saveTodosLocal();
   toast('🗑 连线已删除');
 }
 

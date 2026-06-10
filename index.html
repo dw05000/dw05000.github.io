@@ -95,6 +95,206 @@ svg{width:100%;height:100%;display:block}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#3b3d57;border-radius:3px}
 ::-webkit-scrollbar-thumb:hover{background:#565f89}
+
+/* ===== 左侧待办侧栏（永久固定，不弹窗） ===== */
+#todoSidebar{
+  position:absolute; top:0; left:0; bottom:0;
+  width:300px;
+  background:rgba(26,27,38,.97);
+  border-right:1px solid #2f3348;
+  z-index:50;
+  display:flex; flex-direction:column;
+  backdrop-filter:blur(12px);
+  box-shadow:8px 0 30px rgba(0,0,0,.3);
+}
+#todoSidebarHeader{
+  padding:14px 16px;
+  border-bottom:1px solid #2f3348;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0;
+}
+#todoSidebarHeader h2{
+  font-size:14px;
+  background:linear-gradient(135deg,#f7768e,#9ece6a);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  font-weight:700;
+}
+#todoSidebarBody{
+  flex:1;
+  overflow-y:auto;
+  padding:12px;
+}
+.todo-root-card{
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px;
+  margin-bottom:12px;
+  background:linear-gradient(135deg,rgba(255,158,100,.15),rgba(247,118,142,.1));
+  border:1px solid #ff9e64;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:600;
+  color:#ff9e64;
+}
+.todo-main{
+  margin-bottom:8px;
+  background:rgba(36,38,54,.6);
+  border:1px solid #3b3d57;
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:12px;
+  transition:all .2s;
+  cursor:pointer;
+}
+.todo-main:hover{ background:rgba(59,61,87,.5); }
+.todo-main.doing{ border-left:3px solid #f7768e; }
+.todo-main.done{ border-left:3px solid #9ece6a; opacity:.7; }
+.todo-main.hold{ border-left:3px solid #565f89; opacity:.5; }
+.todo-main-header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:6px;
+  font-weight:600;
+  color:#c0caf5;
+  margin-bottom:4px;
+}
+.todo-main-title{
+  flex:1;
+  display:flex; align-items:center; gap:6px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.todo-main.done .todo-main-title{ text-decoration:line-through; }
+.todo-main-actions{
+  display:flex; gap:4px; flex-shrink:0;
+}
+.todo-mini-btn{
+  background:none; border:none;
+  color:#565f89; cursor:pointer;
+  font-size:14px; padding:2px 4px;
+  border-radius:3px;
+  transition:all .15s;
+}
+.todo-mini-btn:hover{ color:#7aa2f7; background:rgba(122,162,247,.1); }
+.todo-mini-btn.danger:hover{ color:#f7768e; background:rgba(247,118,142,.1); }
+.todo-mini-btn.done{ color:#9ece6a; }
+.todo-meta{
+  font-size:10px; color:#565f89;
+  margin-top:4px;
+  display:flex; gap:8px; flex-wrap:wrap;
+}
+.todo-meta-tag{
+  padding:1px 6px;
+  background:rgba(122,162,247,.1);
+  border-radius:8px;
+  color:#7aa2f7;
+}
+.todo-sublist{
+  margin-top:6px;
+  margin-left:14px;
+  border-left:1px dashed #3b3d57;
+  padding-left:8px;
+}
+.todo-sub{
+  display:flex; align-items:center; gap:6px;
+  padding:4px 6px;
+  margin-bottom:3px;
+  font-size:11px;
+  color:#a9b1d6;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .15s;
+}
+.todo-sub:hover{ background:rgba(122,162,247,.1); }
+.todo-sub.done{ opacity:.5; text-decoration:line-through; }
+.todo-sub-checkbox{
+  width:14px; height:14px;
+  border:1px solid #3b3d57; border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+  transition:all .15s;
+}
+.todo-sub.doing .todo-sub-checkbox{ border-color:#7dcfff; }
+.todo-sub.done .todo-sub-checkbox{ background:#9ece6a; border-color:#9ece6a; color:#1a1b26; }
+.todo-add-sub-btn{
+  margin-top:4px;
+  font-size:10px;
+  color:#7dcfff;
+  background:none; border:none;
+  cursor:pointer;
+  padding:2px 4px;
+  border-radius:3px;
+}
+.todo-add-sub-btn:hover{ background:rgba(125,207,255,.1); }
+.todo-sidebar-footer{
+  border-top:1px solid #2f3348;
+  padding:10px 12px;
+  display:flex; flex-direction:column; gap:8px;
+  flex-shrink:0;
+}
+.todo-sidebar-stats{
+  font-size:10px; color:#565f89;
+  text-align:center;
+}
+.todo-sidebar-btn{
+  height:32px;
+  border-radius:6px;
+  border:1px solid #3b3d57;
+  background:rgba(36,38,54,.8);
+  color:#a9b1d6;
+  font-size:12px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:4px;
+  transition:all .2s;
+}
+.todo-sidebar-btn:hover{ background:rgba(59,61,87,.9); color:#7aa2f7; border-color:#7aa2f7; }
+.todo-sidebar-btn.primary{
+  background:linear-gradient(135deg,#f7768e,#9ece6a);
+  color:#1a1b26;
+  font-weight:700;
+  border-color:transparent;
+}
+.todo-sidebar-btn.primary:hover{ filter:brightness(1.1); }
+
+/* ===== 顶部 Tab 切换器（脑图 / 待办） ===== */
+#tabBar{
+  display:flex;
+  height:36px;
+  background:rgba(26,27,38,.97);
+  border-bottom:1px solid #2f3348;
+  align-items:center;
+  padding:0 16px;
+  gap:4px;
+  z-index:90;
+  backdrop-filter:blur(12px);
+  flex-shrink:0;
+}
+.tab-btn{
+  height:28px;
+  padding:0 16px;
+  border-radius:6px;
+  border:1px solid transparent;
+  background:transparent;
+  color:#565f89;
+  font-size:12px;
+  cursor:pointer;
+  display:flex; align-items:center; gap:5px;
+  transition:all .2s;
+  font-weight:500;
+}
+.tab-btn:hover{ color:#7aa2f7; background:rgba(122,162,247,.08); }
+.tab-btn.active{
+  color:#7aa2f7;
+  background:rgba(122,162,247,.15);
+  border-color:#7aa2f7;
+  font-weight:700;
+}
+.tab-right{
+  margin-left:auto;
+  font-size:10px; color:#565f89;
+}
+
+/* 画布区域根据 tab 切换显隐 */
+.tab-pane{ display:none; position:absolute; inset:0; }
+.tab-pane.active{ display:block; }
 </style>
 </head>
 <body>
@@ -110,10 +310,6 @@ svg{width:100%;height:100%;display:block}
   <button class="tb-btn" id="btnLinkMode" title="连线模式">🔗 连线</button>
   <button class="tb-btn danger" id="btnDelete" title="删除选中">🗑 删除</button>
   <div class="tb-sep"></div>
-  <button class="tb-btn" id="btnAddTodo" title="添加主任务（待办）" style="border-color:#f7768e;color:#f7768e">📋 主任务</button>
-  <button class="tb-btn" id="btnAddSub" title="在选中主任务下添加子任务" style="border-color:#7dcfff;color:#7dcfff">📝 子任务</button>
-  <button class="tb-btn" id="btnDone" title="标记选中任务为完成" style="border-color:#9ece6a;color:#9ece6a">✔ 完成</button>
-  <div class="tb-sep"></div>
   <div class="tb-right">
     <button class="tb-btn" id="btnExport">📥 导出JSON</button>
     <button class="tb-btn" id="btnImport">📤 导入JSON</button>
@@ -124,10 +320,35 @@ svg{width:100%;height:100%;display:block}
 <!-- 连线模式提示 -->
 <div id="linkModeHint">🔗 连线模式：依次点击两个节点来创建连线 · 按 Esc 退出</div>
 
+<!-- 顶部 Tab 切换器 -->
+<div id="tabBar">
+  <button class="tab-btn active" data-tab="graph">🧠 脑图（项目+知识）</button>
+  <button class="tab-btn" data-tab="todo">📋 待办（脑图）</button>
+  <span class="tab-right">💡 脑图管理用工具栏 · 待办管理在画布内按钮</span>
+</div>
+
 <!-- 主体 -->
 <div id="main">
-  <div id="canvasWrap">
-    <svg id="graph"></svg>
+  <!-- 脑图画布 -->
+  <div class="tab-pane active" id="paneGraph">
+    <div id="canvasWrap">
+      <svg id="graph"></svg>
+    </div>
+  </div>
+
+  <!-- 待办画布（独立 SVG + 独立 D3 实例） -->
+  <div class="tab-pane" id="paneTodo">
+    <div id="todoCanvasWrap" style="position:absolute;inset:0;overflow:hidden">
+      <svg id="todoGraph"></svg>
+    </div>
+    <!-- 待办工具栏（浮动在画布顶部中央） -->
+    <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:8px;background:rgba(26,27,38,.92);padding:8px 12px;border-radius:8px;border:1px solid #3b3d57;backdrop-filter:blur(10px)">
+      <button class="tb-btn" id="btnAddTodo3" style="border-color:#f7768e;color:#f7768e">➕ 主任务</button>
+      <button class="tb-btn" id="btnAddSub3" style="border-color:#7dcfff;color:#7dcfff">📝 子任务</button>
+      <button class="tb-btn" id="btnDone3" style="border-color:#9ece6a;color:#9ece6a">✔ 完成</button>
+      <div class="tb-sep" style="width:1px;height:24px;background:#2f3348"></div>
+      <button class="tb-btn" id="btnSyncTodos3">💾 同步 todos.json</button>
+    </div>
   </div>
   <div id="panel">
     <div id="panelHeader">
@@ -1090,7 +1311,134 @@ const todosLoaded = loadTodosFromStorage();
 if (todosLoaded) render();
 initSimulation();
 render();
-window.addEventListener('resize', () => { getSize(); render(); });
+initTodoCanvas();
+window.addEventListener('resize', () => { getSize(); render(); getTodoSize(); renderTodo(); });
+
+// =============== Tab 切换 ===============
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    if (tab === 'graph') {
+      document.getElementById('paneGraph').classList.add('active');
+      setTimeout(() => { getSize(); render(); }, 50);
+    } else if (tab === 'todo') {
+      document.getElementById('paneTodo').classList.add('active');
+      setTimeout(() => { getTodoSize(); renderTodo(); }, 50);
+      toast('📋 待办脑图：点节点操作 · 工具栏：添加/完成/同步');
+    }
+  };
+});
+
+// =============== 独立待办画布（脑图样式但只显示待办节点） ===============
+let todoSvg, todoG, todoSimulation, todoWidth, todoHeight, todoZoom;
+
+function getTodoSize() {
+  const wrap = document.getElementById('todoCanvasWrap');
+  todoWidth = wrap.clientWidth;
+  todoHeight = wrap.clientHeight;
+  todoSvg.attr('viewBox', [0, 0, todoWidth, todoHeight]);
+}
+
+function getTodoData() {
+  // 只取待办节点 + 它们之间的连线
+  const nodes = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat));
+  const ids = new Set(nodes.map(n => n.id));
+  const links = graphData.links
+    .map(l => ({ ...l, source: typeof l.source === 'object' ? l.source.id : l.source, target: typeof l.target === 'object' ? l.target.id : l.target }))
+    .filter(l => ids.has(l.source) && ids.has(l.target));
+  return { nodes, links };
+}
+
+function initTodoCanvas() {
+  todoSvg = d3.select('#todoGraph');
+  todoG = todoSvg.append('g');
+
+  todoZoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => todoG.attr('transform', e.transform));
+  todoSvg.call(todoZoom);
+
+  // 待办画布也用之前 addNodeModal / addSubModal — 跟主画布共享
+  // 按钮事件绑定
+  document.getElementById('btnAddTodo3').onclick = () => document.getElementById('btnAddTodo') && document.getElementById('btnAddTodo').click();
+  document.getElementById('btnAddSub3').onclick = () => {
+    // 把 todo 画布选中的节点同步到主画布的 selectedNode
+    if (todoLastClickedNode) {
+      const realNode = graphData.nodes.find(n => n.id === todoLastClickedNode.id);
+      if (realNode) selectedNode = realNode;
+    }
+    document.getElementById('btnAddSub') && document.getElementById('btnAddSub').click();
+  };
+  document.getElementById('btnDone3').onclick = () => {
+    if (todoLastClickedNode) {
+      const realNode = graphData.nodes.find(n => n.id === todoLastClickedNode.id);
+      if (realNode) selectedNode = realNode;
+    }
+    document.getElementById('btnDone') && document.getElementById('btnDone').click();
+  };
+  document.getElementById('btnSyncTodos3').onclick = () => saveTodos();
+}
+
+let todoSelectedNode = null;
+let todoLastClickedNode = null;
+
+function renderTodo() {
+  const data = getTodoData();
+  if (data.nodes.length === 0) {
+    todoG.selectAll('*').remove();
+    todoG.append('text')
+      .attr('x', todoWidth / 2).attr('y', todoHeight / 2)
+      .attr('text-anchor', 'middle').attr('fill', '#565f89').attr('font-size', '16px')
+      .text('📋 还没有待办 · 点"➕ 主任务"加一个');
+    return;
+  }
+
+  // 链接
+  const link = todoG.selectAll('line.link').data(data.links, d => `${(typeof d.source === 'object' ? d.source.id : d.source)}-${(typeof d.target === 'object' ? d.target.id : d.target)}`);
+  link.exit().remove();
+  link.enter().append('line').attr('class', 'link').attr('stroke', '#3b3d57').attr('stroke-width', 1.5)
+    .merge(link).attr('stroke', d => d.label === '派发' ? '#ff9e64' : d.label === '分解' ? '#7dcfff' : '#565f89');
+
+  // 节点
+  const node = todoG.selectAll('circle.node-circle').data(data.nodes, d => d.id);
+  node.exit().remove();
+  const nodeEnter = node.enter().append('circle').attr('class', 'node-circle');
+  nodeEnter.merge(node)
+    .attr('r', d => d.size)
+    .attr('fill', d => categories[d.cat] ? categories[d.cat].color : '#565f89')
+    .attr('stroke', '#1a1b26').attr('stroke-width', 2)
+    .on('click', (e, d) => {
+      todoLastClickedNode = d;
+      todoSelectedNode = d;
+      // 高亮
+      todoG.selectAll('circle.node-circle').attr('stroke', '#1a1b26').attr('stroke-width', 2);
+      d3.select(e.currentTarget).attr('stroke', '#7aa2f7').attr('stroke-width', 3);
+      toast(`选中: ${d.label}（${d.status || 'no status'}）`);
+    });
+
+  // 标签
+  const label = todoG.selectAll('text.node-label').data(data.nodes, d => d.id);
+  label.exit().remove();
+  label.enter().append('text').attr('class', 'node-label').attr('text-anchor', 'middle').attr('dy', 4)
+    .merge(label)
+    .text(d => d.label.length > 12 ? d.label.substring(0, 12) + '…' : d.label);
+
+  // 力导向（专门跑待办节点的）
+  if (todoSimulation) todoSimulation.stop();
+  todoSimulation = d3.forceSimulation(data.nodes)
+    .force('link', d3.forceLink(data.links).id(d => d.id).distance(d => d.label === '派发' ? 140 : 80).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-400))
+    .force('center', d3.forceCenter(todoWidth / 2, todoHeight / 2))
+    .force('collision', d3.forceCollide().radius(d => d.size + 15))
+    .on('tick', () => {
+      todoG.selectAll('line.link')
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      todoG.selectAll('circle.node-circle').attr('cx', d => d.x).attr('cy', d => d.y);
+      todoG.selectAll('text.node-label').attr('x', d => d.x).attr('y', d => d.y);
+    });
+}
 </script>
 </body>
 </html>

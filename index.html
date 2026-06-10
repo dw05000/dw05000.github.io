@@ -453,19 +453,37 @@ svg{width:100%;height:100%;display:block}
 <script>
 // =============== 数据 ===============
 const categories = {
-  ningde:  { color: '#7aa2f7', label: '🔵 宁德数智城市' },
-  yzgroup: { color: '#9ece6a', label: '🟢 扬州大数据集团' },
-  yzinst:  { color: '#e0af68', label: '🟡 扬州大数据研究院' },
-  zongzhi: { color: '#f7768e', label: '🔴 综合治理研究院' },
-  note:    { color: '#bb9af7', label: '🟣 智能体使用经验' },
-  ima:     { color: '#7dcfff', label: '🩵 ima 知识库' },
-  // ===== 脑图待办（根+主+子）=====
-  boss:    { color: '#ff9e64', label: '🟠 老大' },
-  todo:    { color: '#f7768e', label: '🔴 主任务·进行中' },
-  done:    { color: '#9ece6a', label: '🟢 主任务·已完成' },
-  hold:    { color: '#565f89', label: '⚫ 主任务·已搁置' },
-  subtask: { color: '#7dcfff', label: '🩵 子任务' },
+ ningde: { color: '#7aa2f7', label: '🔵宁德数智城市' },
+ yzgroup: { color: '#9ece6a', label: '🟢扬州大数据集团' },
+ yzinst: { color: '#e0af68', label: '🟡扬州大数据研究院' },
+ zongzhi: { color: '#f7768e', label: '🔴综合治理研究院' },
+ note: { color: '#bb9af7', label: '🟣智能体使用经验' },
+ ima: { color: '#7dcfff', label: '🩵 ima知识库' },
+ // =====脑图待办（根+主+子）=====
+ boss: { color: '#ff9e64', label: '🟠老大' },
+ todo: { color: '#f7768e', label: '🔴 主任务·进行中' },
+ done: { color: '#9ece6a', label: '🟢 主任务·已完成' },
+ hold: { color: '#565f89', label: '⚫ 主任务·已搁置' },
+ subtask: { color: '#7dcfff', label: '🩵 子任务' },
+ // ===== v4.0派生别名（旧 cat 已重命名，颜色沿用8 色板，不引入新色）=====
+ // level=project：boss/proj_xxx/yzgroup/yzinst/zongzhi
+ project: { color: '#7aa2f7', label: '🅿️ 项目（v4）' }, // 并入待办树的项目
+ // level=task：todo/done/hold
+ task: { color: '#f7768e', label: '🟥 主任务·进行中（v4）' }, //6态默认色按 status决定
+ task_done: { color: '#9ece6a', label: '🟩 主任务·已完成（v4）' }, //颜色兜底
+ task_hold: { color: '#565f89', label: '⬛ 主任务·已搁置（v4）' }, //颜色兜底
+ // level=action：subtask 重命名
+ action: { color: '#7dcfff', label: '🟦行动/子任务（v4）' },
+ // level=kb：ima / kb_xxx镜像
+ kb: { color: '#7dcfff', label: '🩵知识库（v4）' },
+ kb_mirror: { color: '#7dcfff', label: '🩵 ima镜像（v4）' },
+ // milestone：v3 无，迁移时为空；新组件配色仍从8 色派生（待办黄）
+ milestone: { color: '#e0af68', label: '🏁里程碑（v4）' },
 };
+
+// v4.0兼容：旧 cat → categories颜色别名映射（确保 categories[oldCat].color始终可用）
+// 设计：categories 对象已包含旧 cat名称（boss/todo/done/hold/subtask/note/ima 等），
+// 新 cat名称作为同色别名并存。这样渲染层 categories[n.cat]?.color 对 v3 和 v4 数据通用。
 
 let graphData = {
   nodes: [
@@ -539,16 +557,26 @@ let graphData = {
 
 let nextId = 100;
 
-// =============== 状态 ===============
+// ===============状态 ===============
 let selectedNode = null;
 let selectedLink = null;
 let linkMode = false;
 let linkSource = null;
 let searchQuery = '';
-// v3.7 单画布：todoOnly 必须放在所有使用它的函数之前（避免 TDZ 死区）
+// v3.7 单画布：todoOnly 必须放在所有使用它的函数之前（避免 TDZ死区）
 let todoOnly = false;
 let catFilterVal = 'all';
 let matchedIds = null; // null = show all
+
+// v4.0扩展：待办类 cat集合（兼容旧 cat 与 v4 新 cat）
+//旧 cat: boss / todo / done / hold / subtask
+// v4 新 cat: project(并入待办树的) / task / task_done / task_hold / action / milestone
+// 注意：kb/kb_mirror/note/ningde/yzgroup/yzinst/zongzhi 不属于待办树（保持原归属）
+const TODO_CAT_SET = new Set([
+ 'boss', 'todo', 'done', 'hold', 'subtask', // v3.7.4旧名（保留显示兼容）
+ 'project', 'task', 'task_done', 'task_hold', 'action', 'milestone' // v4.0 新名
+]);
+const isTodoCat = (cat) => TODO_CAT_SET.has(cat);
 
 // =============== 工具函数 ===============
 function toast(msg) {
@@ -664,7 +692,7 @@ function ticked() {
 function render() {
   // v3.7 单画布：根据 todoOnly 过滤 nodes 和 links
   const visibleNodes = todoOnly
-    ? graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat))
+    ? graphData.nodes.filter(n => isTodoCat(n.cat))
     : graphData.nodes;
   const visibleIds = new Set(visibleNodes.map(n => n.id));
   const visibleLinks = graphData.links.filter(l => {
@@ -1126,13 +1154,13 @@ function toggleDoneStatus() {
 // v3.7.2 拆分：saveTodosLocal 只写 localStorage，downloadTodosJson 真的下载
 function buildTodosData() {
   // 只同步待办相关节点（boss/todo/done/hold/subtask）
-  const todoNodes = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat));
+  const todoNodes = graphData.nodes.filter(n => isTodoCat(n.cat));
   const todoLinks = graphData.links.filter(l => {
     const s = typeof l.source === 'object' ? l.source.id : l.source;
     const t = typeof l.target === 'object' ? l.target.id : l.target;
     const sn = graphData.nodes.find(n => n.id === s);
     const tn = graphData.nodes.find(n => n.id === t);
-    return sn && tn && ['boss', 'todo', 'done', 'hold', 'subtask'].includes(sn.cat);
+    return sn && tn && isTodoCat(sn.cat) && isTodoCat(tn.cat);
   });
   return {
     version: 1,
@@ -1143,17 +1171,60 @@ function buildTodosData() {
 }
 
 function saveTodosLocal() {
-  // 只写 localStorage，不下载（任何增删改状态都调这个）
-  const data = buildTodosData();
-  localStorage.setItem('xiaoling_kanban_todos', JSON.stringify(data));
+ // 只写 localStorage，不下载（任何增删改状态都调这个）
+ // v4.0双 key：保留旧 todos key（备份）+写新 todos_v4 key（version:4）
+ const data = buildTodosData();
+ try {
+ localStorage.setItem(TODOS_KEY, JSON.stringify(data)); //旧 key保留备份
+ //v4 todos key：升级到 version:4
+ const dataV4 = {
+ ...data,
+ version:4,
+ nodes: data.nodes.map(n => ({
+ id: n.id, cat: n.cat, level: n.level || CAT_LEVEL_TABLE[n.cat] || 'note',
+ label: n.label, status: n.status || 'backlog', parent: n.parent || null,
+ size: n.size ||18, tags: n.tags || [], context: n.context || [],
+ due: n.due || null, energy: n.energy || null, verb: n.verb || null,
+ desc: n.desc || '', noteId: n.noteId || '',
+ createdAt: n.createdAt || null, updatedAt: n.updatedAt || null,
+ v:4,
+ })),
+ links: data.links.map(l => ({
+ source: typeof l.source === 'object' ? l.source.id : l.source,
+ target: typeof l.target === 'object' ? l.target.id : l.target,
+ label: l.label || '关联', kind: l.kind || null, v:4,
+ })),
+ };
+ localStorage.setItem(TODOS_KEY_V4, JSON.stringify(dataV4));
+ } catch(e) { console.error('saveTodosLocal failed', e); }
 }
 
 function downloadTodosJson() {
-  // 真的触发下载（只有 💾 同步按钮才调这个）
-  const data = buildTodosData();
-  // 同步刷一下 localStorage 保证最新
-  localStorage.setItem('xiaoling_kanban_todos', JSON.stringify(data));
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+ //真的触发下载（只有 💾同步按钮才调这个）
+ // v4.0：下载的 todos.json 用 v4 schema（version:4），下次同步无需告知
+ const data = buildTodosData();
+ //同步刷一下 localStorage 保证最新（双 key）
+ localStorage.setItem(TODOS_KEY, JSON.stringify(data));
+ const dataV4 = {
+ version:4,
+ updatedAt: data.updatedAt,
+ nodes: data.nodes.map(n => ({
+ id: n.id, cat: n.cat, level: n.level || CAT_LEVEL_TABLE[n.cat] || 'note',
+ label: n.label, status: n.status || 'backlog', parent: n.parent || null,
+ size: n.size ||18, tags: n.tags || [], context: n.context || [],
+ due: n.due || null, energy: n.energy || null, verb: n.verb || null,
+ desc: n.desc || '', noteId: n.noteId || '',
+ createdAt: n.createdAt || null, updatedAt: n.updatedAt || null,
+ v:4,
+ })),
+ links: data.links.map(l => ({
+ source: typeof l.source === 'object' ? l.source.id : l.source,
+ target: typeof l.target === 'object' ? l.target.id : l.target,
+ label: l.label || '关联', kind: l.kind || null, v:4,
+ })),
+ };
+ localStorage.setItem(TODOS_KEY_V4, JSON.stringify(dataV4));
+ const blob = new Blob([JSON.stringify(dataV4, null,2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1173,7 +1244,7 @@ function loadTodosFromStorage() {
     const data = JSON.parse(raw);
     if (!data.nodes || !data.links) return false;
     // 合并：保留 graphData 中非待办节点 + 加入 todos 中的节点/连线
-    const todoNodeIds = new Set(graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat)).map(n => n.id));
+    const todoNodeIds = new Set(graphData.nodes.filter(n => isTodoCat(n.cat)).map(n => n.id));
     data.nodes.forEach(n => {
       if (!todoNodeIds.has(n.id)) graphData.nodes.push(n);
     });
@@ -1301,10 +1372,100 @@ document.getElementById('importFile').onchange = function(e) {
   this.value = '';
 };
 
+// =============== v4.0 数据模型迁移 ===============
+// 设计方案：v4.0-数据模型迁移方案.md §3-§5
+//目的：v3.7.4 老 localStorage 数据 → v4.0 schema，双 key兼容（保留旧 key备份）
+// ============================================================
+
+// v4.0 数据契约常量
+const STORAGE_KEY_V4 = 'knowledge-graph-data-v4'; // 新 key（顶层 version:4）
+const STORAGE_KEY_V1 = 'knowledge-graph-data-v1'; //旧 key（保留备份，不删）
+const TODOS_KEY = 'xiaoling_kanban_todos'; //旧待办 key（保留备份）
+const TODOS_KEY_V4 = 'xiaoling_kanban_todos_v4'; // 新待办 key（version:4）
+const MIGRATION_FLAG = 'kg_migrated_v4'; //首次迁移时间戳
+
+// §3.2 + §4.2 cat 重命名表（旧 cat → 新 cat + level）
+const CAT_RENAME_TABLE = {
+ boss: { cat: 'boss', level: 'project' },
+ todo: { cat: 'task', level: 'task' },
+ done: { cat: 'task_done', level: 'task' },
+ hold: { cat: 'task_hold', level: 'task' },
+ subtask: { cat: 'action', level: 'action' },
+ proj_ningde: { cat: 'project', level: 'project' },
+ proj_yzgroup: { cat: 'project', level: 'project' },
+ proj_yzinst: { cat: 'project', level: 'project' },
+ proj_zongzhi: { cat: 'project', level: 'project' },
+ ningde: { cat: 'project', level: 'project' },
+ yzgroup: { cat: 'yzgroup', level: 'project' },
+ yzinst: { cat: 'yzinst', level: 'project' },
+ zongzhi: { cat: 'zongzhi', level: 'project' },
+ note: { cat: 'note', level: 'note' },
+ ima: { cat: 'kb', level: 'kb' },
+ kb_ningde: { cat: 'kb_mirror', level: 'kb' },
+ kb_yzgroup: { cat: 'kb_mirror', level: 'kb' },
+ kb_yzinst: { cat: 'kb_mirror', level: 'kb' },
+ kb_zongzhi: { cat: 'kb_mirror', level: 'kb' },
+ kb_smartnote: { cat: 'kb_mirror', level: 'kb' },
+ exp_md: { cat: 'note', level: 'note' },
+ exp_3cases: { cat: 'note', level: 'note' },
+ exp_cwd: { cat: 'note', level: 'note' },
+ exp_patch: { cat: 'note', level: 'note' },
+ exp_promise: { cat: 'note', level: 'note' },
+ exp_onereport: { cat: 'note', level: 'note' },
+ exp_ima: { cat: 'note', level: 'note' },
+ exp_cron: { cat: 'note', level: 'note' },
+};
+// §3.4 level推导表（基于已重命名的新 cat）
+const CAT_LEVEL_TABLE = {
+ boss: 'project',
+ task: 'task',
+ task_done: 'task',
+ task_hold: 'task',
+ action: 'action',
+ project: 'project',
+ milestone: 'milestone',
+ note: 'note',
+ kb: 'kb',
+ kb_mirror: 'kb',
+ yzgroup: 'project',
+ yzinst: 'project',
+ zongzhi: 'project',
+};
+
+// §4.3 连线 label → kind映射表
+const LINK_LABEL_KIND_TABLE = {
+ '派发': 'hierarchy',
+ '分解': 'hierarchy',
+ '已完成': 'hierarchy',
+ '同步到': 'sync',
+ '写入': 'ref',
+ '适用': 'ref',
+ '管理': 'ref',
+ '类似': 'ref',
+ '搭配': 'ref',
+ '前置': 'dep',
+ '依赖': 'dep',
+ '阻塞': 'dep',
+};
+
+// §4.4 context匹配正则（5选1上下文标签）
+const CONTEXT_RE = /@(电脑|家|外出|电话|会议)/g;
+
+// §3.36态状态机 →颜色（状态颜色映射，待办类按 status决定色）
+//旧 todo/done/hold 的 status字段可能缺失或为 root/boss，缺失时默认 backlog
+const STATUS_DEFAULT = {
+ todo: 'backlog', //旧 todo类无 status 时默认 backlog
+ kb: 'root',
+ note: 'root',
+};
+
 // =============== 自动保存 (localStorage) ===============
 const STORAGE_KEY = 'knowledge-graph-data-v1';
 
 function autoSave() {
+  // v4.0 修复：v1 key 只在"未迁移"状态写入（避免覆盖 v3 老数据备份）
+  // 一旦 v4 key 存在（说明已迁移），v1 key 保留为"v3 老数据快照"永不再写
+  if (localStorage.getItem(STORAGE_KEY_V4)) return;
   const data = {
     nodes: graphData.nodes.map(n => ({
       id: n.id, label: n.label, cat: n.cat, size: n.size,
@@ -1333,29 +1494,306 @@ function autoLoad() {
   return false;
 }
 
-// 覆盖 render，使其每次渲染后自动保存
+// =============== v4.0迁移函数 migrateV3toV4() ===============
+// 输入：v3 data = { nodes: NodeV3[], links: LinkV3[] }
+// 输出：v4 data = { version:4, updatedAt: ISO, nodes: NodeV4[], links: LinkV4[] }
+//严格按设计方案 §4字段映射 + §5.4 函数契约
+function migrateV3toV4(v3Data) {
+ if (!v3Data || !Array.isArray(v3Data.nodes) || !Array.isArray(v3Data.links)) {
+ throw new Error('migrateV3toV4: invalid v3 data shape');
+ }
+ const now = new Date().toISOString();
+ const newNodes = [];
+ const newLinks = [];
+ const parentLinks = []; // old parent → hierarchy连线（第三轮追加）
+
+ // 第一轮：节点字段迁移
+ for (const n of v3Data.nodes) {
+ //1. cat 重命名（§4.2）
+ const oldCat = n.cat;
+ const rename = CAT_RENAME_TABLE[oldCat] || { cat: oldCat, level: CAT_LEVEL_TABLE[oldCat] || 'note' };
+ const newCat = rename.cat;
+ //2. level推导（§3.4）
+ const newLevel = rename.level || CAT_LEVEL_TABLE[newCat] || 'note';
+ //3. status 直接映射 +缺省兜底（§4.1）
+ let newStatus = n.status;
+ if (!newStatus) {
+ if (oldCat === 'boss') newStatus = 'root';
+ else if (['todo','done','hold'].includes(oldCat)) newStatus = 'backlog';
+ else if (['note','ima','kb_ningde','kb_yzgroup','kb_yzinst','kb_zongzhi','kb_smartnote','exp_md','exp_3cases','exp_cwd','exp_patch','exp_promise','exp_onereport','exp_ima','exp_cron'].includes(oldCat)) newStatus = 'root';
+ else if (oldCat === 'subtask') newStatus = 'backlog';
+ else newStatus = 'root';
+ }
+ //4. tags/context拆分（§4.4）
+ const oldTags = Array.isArray(n.tags) ? n.tags.slice() : [];
+ const contextTags = [];
+ const remainTags = [];
+ for (const tag of oldTags) {
+ // 用正则匹配 @xxx（5选1）
+ CONTEXT_RE.lastIndex =0;
+ const matches = String(tag).match(CONTEXT_RE);
+ if (matches && matches.length >0) {
+ // 处理含多个 @xxx 的字符串（如 "@电脑 @会议"）
+ matches.forEach(m => contextTags.push(m));
+ // 从原 tag 中移除 context 部分，剩余部分留在 tags（不丢信息）
+ const remainder = String(tag).replace(CONTEXT_RE, '').trim();
+ if (remainder) remainTags.push(remainder);
+ } else {
+ remainTags.push(tag);
+ }
+ }
+ //5. parent →推 hierarchy 连线（第三轮用），节点 parent置 null
+ const oldParent = n.parent || null;
+ if (oldParent) {
+ parentLinks.push({ source: oldParent, target: n.id, label: '分解', kind: 'hierarchy', v:4 });
+ }
+ //6. verb（action节点且 label 首词为动词时填，否则 null）
+ let newVerb = null;
+ if (newCat === 'action' && typeof n.label === 'string') {
+ const label = n.label.trim();
+ //拆分策略：有空格取首词；无空格（紧凑中文）取首字
+ const firstWord = label.includes(' ') ? label.split(/\s+/)[0] : label.charAt(0);
+ //简易动词判断：含汉字或英文动词前缀
+ if (firstWord && /^(改|加|做|写|删|跑|查|更新|优化|修复|补|提交|打包|部署|测试|检查|联系|同步|写入|迁移|拆分|合并|配置|运行|启动|关闭|打开|调试|重构|翻译|生成|审核|完成|清理|设计|实现|建立|创建|确定|安排|确认|提醒|讨论|总结|汇报)/.test(firstWord) ||
+ /^(add|fix|make|write|delete|run|check|update|test|deploy|build|move|merge|split|refactor|setup|create|design|send|review|finish|clean|verify|configure)/i.test(firstWord)) {
+ newVerb = firstWord;
+ }
+ }
+ //7. 组装 v4节点
+ const v4Node = {
+ id: n.id,
+ cat: newCat,
+ level: newLevel,
+ label: n.label,
+ status: newStatus,
+ parent: null, //旧 parent 已降级为 hierarchy 连线
+ size: n.size ||18,
+ tags: remainTags,
+ context: contextTags, // 空数组，不是 null（§4.4边界2）
+ due: null,
+ energy: null,
+ verb: newVerb,
+ desc: n.desc || '',
+ noteId: n.noteId || '',
+ createdAt: null, //迁移期不补，省得污染（§4.1）
+ updatedAt: null,
+ v:4,
+ };
+ newNodes.push(v4Node);
+ }
+
+ // 第二轮：连线字段迁移
+ for (const l of v3Data.links) {
+ const oldLabel = l.label || '';
+ const newKind = LINK_LABEL_KIND_TABLE[oldLabel] || null;
+ newLinks.push({
+ source: typeof l.source === 'object' ? (l.source.id || '') : (l.source || ''),
+ target: typeof l.target === 'object' ? (l.target.id || '') : (l.target || ''),
+ label: oldLabel,
+ kind: newKind,
+ v:4,
+ });
+ }
+
+ // 第三轮：旧 parent降级的 hierarchy 连线追加
+ for (const hl of parentLinks) {
+ // 去重：如果 newLinks已有相同 source-target-label，跳过
+ const dup = newLinks.some(x =>
+ x.source === hl.source && x.target === hl.target && x.label === hl.label
+ );
+ if (!dup) newLinks.push(hl);
+ }
+
+ return {
+ version:4,
+ updatedAt: now,
+ nodes: newNodes,
+ links: newLinks,
+ };
+}
+
+// =============== v4.0 自动保存（双 key写） ===============
+//改写 autoSave：保留 STORAGE_KEY_V1备份 +写 STORAGE_KEY_V4 新格式
+function autoSaveV4() {
+ const data = {
+ version:4,
+ updatedAt: new Date().toISOString(),
+ nodes: graphData.nodes,
+ links: graphData.links,
+ };
+ try { localStorage.setItem(STORAGE_KEY_V4, JSON.stringify(data)); } catch(e) { console.error('autoSaveV4 failed', e); }
+}
+
+// v4.0 节点默认值工厂（v4.0 修复：seed 节点硬编码在 graphData 缺 level/verb/v 字段）
+// 给任一节点补全 v4 schema 字段，缺啥补啥，不覆盖已有值
+function ensureV4NodeFields(n) {
+ if (!n) return n;
+ if (n.v !== 4) n.v = 4;
+ if (!n.level) n.level = CAT_LEVEL_TABLE[n.cat] || (n.cat === 'boss' ? 'project' : 'note');
+ if (!n.status) n.status = 'backlog';
+ if (n.context === undefined || n.context === null) n.context = [];
+ if (n.due === undefined) n.due = null;
+ if (n.energy === undefined) n.energy = null;
+ if (n.verb === undefined) n.verb = null;
+ if (!n.createdAt) n.createdAt = new Date().toISOString();
+ if (!n.updatedAt) n.updatedAt = n.createdAt;
+ if (n.parent === undefined) n.parent = null;
+ if (n.tags === undefined) n.tags = [];
+ if (n.noteId === undefined) n.noteId = '';
+ if (n.desc === undefined) n.desc = '';
+ return n;
+}
+
+// 给 graphData 全图节点补默认值（启动时调一次）
+function ensureAllV4Defaults() {
+ graphData.nodes.forEach(ensureV4NodeFields);
+ graphData.links.forEach(l => {
+  if (!l.kind) l.kind = 'ref';
+ });
+}
+
+// =============== v4.0启动加载（双层兼容） ===============
+//启动顺序（§5.2）：
+//1.读 v4 key → 有 → 直接用
+//2. 没有 →读 v1 key → 有 →调 migrateV3toV4 →写 v4 key +保留 v1
+//3.还没有 →读 todos key → 同上
+//4.都没有 → 用默认 seed 数据
+function loadV4Data() {
+ //1.优先读 v4 key
+ try {
+ const rawV4 = localStorage.getItem(STORAGE_KEY_V4);
+ if (rawV4) {
+ const data = JSON.parse(rawV4);
+ if (data && data.nodes && data.links && (data.version ===4 || (data.nodes.length >0 && data.nodes[0]?.v ===4))) {
+ // v4 数据：规范化字段（防御性：缺失字段补默认值）
+ data.nodes = data.nodes.map(n => ({
+ id: n.id, cat: n.cat, level: n.level || CAT_LEVEL_TABLE[n.cat] || 'note',
+ label: n.label, status: n.status || 'backlog', parent: n.parent || null,
+ size: n.size ||18, tags: n.tags || [], context: n.context || [],
+ due: n.due || null, energy: n.energy || null, verb: n.verb || null,
+ desc: n.desc || '', noteId: n.noteId || '',
+ createdAt: n.createdAt || null, updatedAt: n.updatedAt || null,
+ v:4,
+ }));
+ data.links = data.links.map(l => ({
+ source: typeof l.source === 'object' ? (l.source.id || '') : (l.source || ''),
+ target: typeof l.target === 'object' ? (l.target.id || '') : (l.target || ''),
+ label: l.label || '关联', kind: l.kind || null, v:4,
+ }));
+ graphData.nodes = data.nodes;
+ graphData.links = data.links;
+ return { loaded: true, source: 'v4' };
+ }
+ }
+ } catch (e) { console.error('loadV4Data: v4 key read failed', e); }
+
+ // 2.读 v1 key（knowledge-graph-data-v1）→迁移
+ try {
+  const rawV1 = localStorage.getItem(STORAGE_KEY_V1);
+  if (rawV1) {
+   const data = JSON.parse(rawV1);
+   if (data && data.nodes && data.links && data.nodes.length > 0) {
+    const migrated = migrateV3toV4(data);
+    // 与默认 seed 合并（v4.0 修复：覆盖式赋值会丢 seed 知识图谱节点）
+    const existingIds = new Set(graphData.nodes.map(n => n.id));
+    migrated.nodes.forEach(n => { if (!existingIds.has(n.id)) graphData.nodes.push(n); });
+    const existingLinkKeys = new Set(graphData.links.map(l =>
+     (typeof l.source === 'object' ? l.source.id : l.source) + '->' +
+     (typeof l.target === 'object' ? l.target.id : l.target)));
+    migrated.links.forEach(l => {
+     const sId = typeof l.source === 'object' ? l.source.id : l.source;
+     const tId = typeof l.target === 'object' ? l.target.id : l.target;
+     const k = sId + '->' + tId;
+     if (!existingLinkKeys.has(k)) graphData.links.push(l);
+    });
+    // 给合并进来的迁移节点补默认字段
+    graphData.nodes.forEach(n => ensureV4NodeFields(n));
+    // 写 v4 key + 标记（保留 v1 key 备份，不删）
+    try {
+     localStorage.setItem(STORAGE_KEY_V4, JSON.stringify({
+      version: 4, updatedAt: new Date().toISOString(),
+      nodes: graphData.nodes, links: graphData.links
+     }));
+     localStorage.setItem(MIGRATION_FLAG, new Date().toISOString());
+    } catch (e) { console.error('migrate write v4 failed', e); }
+    return { loaded: true, source: 'v1-migrated' };
+   }
+  }
+ } catch (e) { console.error('loadV4Data: v1 key read failed', e); }
+
+ //3.读 todos key（xiaoling_kanban_todos）→迁移（只有待办部分）
+ try {
+ const rawTodos = localStorage.getItem(TODOS_KEY);
+ if (rawTodos) {
+ const data = JSON.parse(rawTodos);
+ if (data && data.nodes && data.links && data.nodes.length >0) {
+ const migrated = migrateV3toV4(data);
+ // 与默认 seed合并（保留默认 kb/note 等，只补充待办部分）
+ const existingIds = new Set(graphData.nodes.map(n => n.id));
+ migrated.nodes.forEach(n => { if (!existingIds.has(n.id)) graphData.nodes.push(n); });
+  const existingLinkKeys = new Set(graphData.links.map(l =>
+  (typeof l.source === 'object' ? l.source.id : l.source) + '->' +
+  (typeof l.target === 'object' ? l.target.id : l.target)));
+   migrated.links.forEach(l => {
+    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+    const k = sId + '->' + tId;
+    if (!existingLinkKeys.has(k)) graphData.links.push(l);
+   });
+   // v4.0 修复：给合并进来的迁移节点补默认字段
+   graphData.nodes.forEach(ensureV4NodeFields);
+   //写 v4 key（用当前合并后的全图）
+ try {
+ const merged = {
+ version:4,
+ updatedAt: new Date().toISOString(),
+ nodes: graphData.nodes,
+ links: graphData.links,
+ };
+ localStorage.setItem(STORAGE_KEY_V4, JSON.stringify(merged));
+ localStorage.setItem(MIGRATION_FLAG, new Date().toISOString());
+ } catch (e) { console.error('todos migrate write v4 failed', e); }
+ return { loaded: true, source: 'todos-migrated' };
+ }
+ }
+ } catch (e) { console.error('loadV4Data: todos key read failed', e); }
+
+ return { loaded: false, source: 'default-seed' };
+}
+
+//覆盖 render，使其每次渲染后自动保存（v4.0双 key）
 const _origRender = render;
 render = function() {
-  _origRender();
-  autoSave();
+ _origRender();
+ autoSave(); //保留 v1 key备份
+ autoSaveV4(); //写 v4 key 新格式
 };
 
-// 覆盖 savePanel 也触发保存
+//覆盖 savePanel 也触发保存
 const _origSavePanel = savePanel;
 savePanel = function() {
-  _origSavePanel();
-  autoSave();
+ _origSavePanel();
+ autoSave(); //保留 v1 key备份
+ autoSaveV4(); //写 v4 key 新格式
 };
 
-// =============== 启动 ===============
+// ===============启动 ===============
 // v3.7 单画布：待办画布已删除，不再需要 todoSvg/todoG/todoSimulation 等
+// v4.0双层兼容加载（§5.2）
 
 getSize();
 initUI();
-const loaded = autoLoad();
-if (loaded) toast('📂 已自动恢复上次保存的数据');
+// v4.0 修复：给默认 seed 节点补全 v4 schema 字段（seed 硬编码在 graphData 缺 level/verb/v）
+ensureAllV4Defaults();
+//优先尝试 v4 key → v1 key → todos key → 默认 seed
+const loadResult = loadV4Data();
+if (loadResult.loaded) {
+ if (loadResult.source === 'v4') toast('📂 已加载 v4.0 数据（最新）');
+ else if (loadResult.source === 'v1-migrated') toast('🔄 已从 v3.7.4迁移到 v4.0（旧数据已备份）');
+ else if (loadResult.source === 'todos-migrated') toast('🔄 已从旧待办数据迁移到 v4.0');
+}
+//待办数据二次合并（保证旧 todos.json 数据也被吸收，避免漏迁移）
 const todosLoaded = loadTodosFromStorage();
-if (todosLoaded) render();
 initSimulation();
 render();
 // v3.7 单画布：删除 initTodoCanvas 和 renderTodo（画布已删，函数也没了）

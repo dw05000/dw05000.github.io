@@ -322,11 +322,11 @@ svg{width:100%;height:100%;display:block}
 <!-- 连线模式提示 -->
 <div id="linkModeHint">🔗 连线模式：依次点击两个节点来创建连线 · 按 Esc 退出</div>
 
-<!-- 顶部 Tab 切换器 -->
+<!-- 顶部 Tab 切换器（v3.7 单画布：tab 只切"看全部 / 只看待办"过滤，不再动画布） -->
 <div id="tabBar">
-  <button class="tab-btn active" data-tab="graph">🧠 脑图（项目+知识）</button>
-  <button class="tab-btn" data-tab="todo">📋 待办（脑图）</button>
-  <span class="tab-right">💡 脑图管理用工具栏 · 待办管理在画布内按钮</span>
+  <button class="tab-btn active" data-tab="graph">🧠 脑图（全部）</button>
+  <button class="tab-btn" data-tab="todo">📋 只看待办</button>
+  <span class="tab-right">💡 工具栏顶部 4 个按钮：添加主任务/子任务/完成/同步</span>
 </div>
 
 <!-- 主体 -->
@@ -336,14 +336,7 @@ svg{width:100%;height:100%;display:block}
     <div id="canvasWrap">
       <svg id="graph"></svg>
     </div>
-  </div>
-
-  <!-- 待办画布（独立 SVG + 独立 D3 实例） -->
-  <div class="tab-pane" id="paneTodo">
-    <div id="todoCanvasWrap" style="position:absolute;inset:0;overflow:hidden">
-      <svg id="todoGraph"></svg>
-    </div>
-    <!-- 待办工具栏（浮动在画布顶部中央） -->
+    <!-- 待办工具栏（浮动在画布顶部中央，单画布共用） -->
     <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:60;display:flex;gap:8px;background:rgba(26,27,38,.92);padding:8px 12px;border-radius:8px;border:1px solid #3b3d57;backdrop-filter:blur(10px)">
       <button class="tb-btn" id="btnAddTodo3" style="border-color:#f7768e;color:#f7768e">➕ 主任务</button>
       <button class="tb-btn" id="btnAddSub3" style="border-color:#7dcfff;color:#7dcfff">📝 子任务</button>
@@ -598,6 +591,12 @@ function initUI() {
   gDiv.innerHTML = graphCats.map(k => `<div class="legend-item"><div class="legend-dot" style="background:${categories[k].color}"></div>${categories[k].label}</div>`).join('');
   const tDiv = document.getElementById('legendTodoItems');
   tDiv.innerHTML = todoCats.map(k => `<div class="legend-item"><div class="legend-dot" style="background:${categories[k].color}"></div>${categories[k].label}</div>`).join('');
+
+  // v3.7 单画布：4 个浮动按钮事件绑定（从 initTodoCanvas 搬过来）
+  document.getElementById('btnAddTodo3').onclick = openAddTodoModal;
+  document.getElementById('btnAddSub3').onclick = openAddSubModal;
+  document.getElementById('btnDone3').onclick = toggleDoneStatus;
+  document.getElementById('btnSyncTodos3').onclick = saveTodos;
 }
 
 // =============== D3 画布 ===============
@@ -661,10 +660,20 @@ function ticked() {
 }
 
 function render() {
+  // v3.7 单画布：根据 todoOnly 过滤 nodes 和 links
+  const visibleNodes = todoOnly
+    ? graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat))
+    : graphData.nodes;
+  const visibleIds = new Set(visibleNodes.map(n => n.id));
+  const visibleLinks = graphData.links.filter(l => {
+    const s = typeof l.source === 'object' ? l.source.id : l.source;
+    const t = typeof l.target === 'object' ? l.target.id : l.target;
+    return visibleIds.has(s) && visibleIds.has(t);
+  });
   // 连线
   linkGroup = g.selectAll('.links').data([null]);
   linkGroup = linkGroup.enter().append('g').attr('class','links').merge(linkGroup);
-  let linksel = linkGroup.selectAll('line').data(graphData.links, getLinkKey);
+  let linksel = linkGroup.selectAll('line').data(visibleLinks, getLinkKey);
   linksel.exit().remove();
   linksel = linksel.enter().append('line').attr('class','link').attr('stroke-width', 1.5)
     .on('click', onLinkClick)
@@ -683,10 +692,10 @@ function render() {
   ll = ll.enter().append('text').attr('class','link-label').attr('font-size', 9)
     .merge(ll).text(d => d.label);
 
-  // 节点
+  // 节点（v3.7：用 visibleNodes 而非 graphData.nodes）
   nodeGroup = g.selectAll('.nodes').data([null]);
   nodeGroup = nodeGroup.enter().append('g').attr('class','nodes').merge(nodeGroup);
-  let ng = nodeGroup.selectAll('g.node-g').data(graphData.nodes, d => d.id);
+  let ng = nodeGroup.selectAll('g.node-g').data(visibleNodes, d => d.id);
   ng.exit().remove();
   const entered = ng.enter().append('g').attr('class','node-g')
     .call(d3.drag()
@@ -738,8 +747,9 @@ function render() {
     .text(d => d.label);
 
   applyFilter();
-  simulation.nodes(graphData.nodes);
-  simulation.force('link').links(graphData.links);
+  // v3.7 单画布：simulation 用 visibleNodes，避免被隐藏的节点乱动
+  simulation.nodes(visibleNodes);
+  simulation.force('link').links(visibleLinks);
   simulation.alpha(0.4).restart();
 }
 
@@ -1041,11 +1051,15 @@ function confirmAddTodo() {
   graphData.links.push({ source: TODO_BOSS_ID, target: id, label: '派发' });
   closeModal('addTodoModal');
   render();
-  try { renderTodo(); } catch(e) { console.error('renderTodo failed (addMain):', e); toast('⚠️ 待办画布渲染失败: ' + e.message); }
   saveTodos();
-  // 切到待办 tab 让老大立刻能看到
-  switchTab('todo');
-  toast('✅ 主任务已添加（已切到 📋 待办脑图）');
+  // v3.7 单画布：自动切到"只看待办"tab 让老大立刻看到新加的
+  todoOnly = true;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="todo"]').classList.add('active');
+  document.getElementById('legendGraph').classList.remove('legend-graph-active');
+  document.getElementById('legendTodo').classList.add('legend-graph-active');
+  setTimeout(() => { getSize(); render(); }, 50);
+  toast('✅ 主任务已添加（已切到只看待办）');
 }
 
 // 📝 打开添加子任务模态框
@@ -1080,7 +1094,6 @@ function confirmAddSub() {
   graphData.links.push({ source: selectedNode.id, target: id, label: '分解' });
   closeModal('addSubModal');
   render();
-  try { renderTodo(); } catch(e) {}
   saveTodos();
   toast('✅ 子任务已添加');
 }
@@ -1102,7 +1115,6 @@ function toggleDoneStatus() {
     node.cat = STATUS_CAT_MAP[node.status];
   }
   render();
-  try { renderTodo(); } catch(e) {}
   saveTodos();
   toast('✔ 状态已更新：' + node.status);
 }
@@ -1317,10 +1329,7 @@ savePanel = function() {
 };
 
 // =============== 启动 ===============
-// 关键修复：let 声明必须在 启动代码 之前（TDZ 死区）
-let todoSvg, todoG, todoSimulation, todoWidth, todoHeight, todoZoom;
-let todoSelectedNode = null;
-let todoLastClickedNode = null;
+// v3.7 单画布：待办画布已删除，不再需要 todoSvg/todoG/todoSimulation 等
 
 getSize();
 initUI();
@@ -1330,175 +1339,30 @@ const todosLoaded = loadTodosFromStorage();
 if (todosLoaded) render();
 initSimulation();
 render();
-try { initTodoCanvas(); } catch(e) { console.error('initTodoCanvas failed:', e); toast('⚠️ 待办画布初始化失败: ' + e.message); }
-// 启动时也跑一次 renderTodo
-try {
-  getTodoSize();
-  renderTodo();
-} catch(e) { console.error('初始 renderTodo failed:', e); toast('⚠️ renderTodo 失败: ' + e.message); }
-// 🔍 诊断：显示当前数据状态
-setTimeout(() => {
-  const todoCount = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat)).length;
-  const totalCount = graphData.nodes.length;
-  console.log('🔍 诊断信息:');
-  console.log('  总节点数:', totalCount);
-  console.log('  待办节点数:', todoCount);
-  console.log('  脑图 categories:', Object.keys(categories).length);
-  console.log('  待办画布 SVG:', document.getElementById('todoGraph') ? '存在' : '缺失');
-  console.log('  待办画布 wrap:', document.getElementById('todoCanvasWrap') ? '存在' : '缺失');
-  console.log('  todoSvg 对象:', typeof todoSvg);
-  console.log('  todoG 对象:', typeof todoG);
-  toast('🔍 总节点: ' + totalCount + ' / 待办: ' + todoCount);
-}, 500);
-window.addEventListener('resize', () => { getSize(); render(); try { getTodoSize(); renderTodo(); } catch(e) {} });
+// v3.7 单画布：删除 initTodoCanvas 和 renderTodo（画布已删，函数也没了）
+window.addEventListener('resize', () => { getSize(); render(); });
 
-// =============== Tab 切换 ===============
+// =============== Tab 切换（v3.7：单画布，tab 只切"全部/待办"过滤） ===============
+let todoOnly = false;  // 当前是否只显示待办节点
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.onclick = () => {
     const tab = btn.dataset.tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    // 图例联动：绑到对应画布上
+    todoOnly = (tab === 'todo');
+    // 图例联动
     document.getElementById('legendGraph').classList.toggle('legend-graph-active', tab === 'graph');
     document.getElementById('legendTodo').classList.toggle('legend-graph-active', tab === 'todo');
-    if (tab === 'graph') {
-      document.getElementById('paneGraph').classList.add('active');
-      setTimeout(() => { getSize(); render(); }, 50);
-    } else if (tab === 'todo') {
-      document.getElementById('paneTodo').classList.add('active');
-      setTimeout(() => { getTodoSize(); renderTodo(); }, 50);
-      toast('📋 待办脑图：点节点操作 · 工具栏：添加/完成/同步');
-    }
+    // 重新渲染（带过滤）
+    setTimeout(() => { getSize(); render(); }, 50);
+    toast(tab === 'todo' ? '📋 只看待办节点（老大/主任务/子任务/已搁置）' : '🧠 显示全部节点');
   };
 });
 
 // =============== 独立待办画布（脑图样式但只显示待办节点） ===============
-// let 声明已移到 启动代码 之前（避免 TDZ 报错）
+// v3.7 单画布：删除了 getTodoSize / getTodoData / initTodoCanvas / renderTodo 整块函数定义（1355-1479）
+// 待办按钮（btnAddTodo3/btnAddSub3/btnDone3/btnSyncTodos3）的事件绑定改到 initUI 里直接绑
 
-function getTodoSize() {
-  const wrap = document.getElementById('todoCanvasWrap');
-  if (!wrap) return;
-  todoWidth = wrap.clientWidth;
-  todoHeight = wrap.clientHeight;
-  if (todoSvg) todoSvg.attr('viewBox', [0, 0, todoWidth, todoHeight]);
-}
-
-function getTodoData() {
-  // 只取待办节点 + 它们之间的连线
-  const nodes = graphData.nodes.filter(n => ['boss', 'todo', 'done', 'hold', 'subtask'].includes(n.cat));
-  const ids = new Set(nodes.map(n => n.id));
-  const links = graphData.links
-    .map(l => ({ ...l, source: typeof l.source === 'object' ? l.source.id : l.source, target: typeof l.target === 'object' ? l.target.id : l.target }))
-    .filter(l => ids.has(l.source) && ids.has(l.target));
-  return { nodes, links };
-}
-
-function initTodoCanvas() {
-  todoSvg = d3.select('#todoGraph');
-  todoG = todoSvg.append('g');
-
-  todoZoom = d3.zoom().scaleExtent([0.3, 3]).on('zoom', e => todoG.attr('transform', e.transform));
-  todoSvg.call(todoZoom);
-
-  // 待办画布也用之前 addNodeModal / addSubModal — 跟主画布共享
-  // 按钮事件绑定（直接调函数，不调 .click() —— 老的工具栏按钮 HTML 已删）
-  document.getElementById('btnAddTodo3').onclick = openAddTodoModal;
-  document.getElementById('btnAddSub3').onclick = () => {
-    if (todoLastClickedNode) {
-      const realNode = graphData.nodes.find(n => n.id === todoLastClickedNode.id);
-      if (realNode) selectedNode = realNode;
-    }
-    openAddSubModal();
-  };
-  document.getElementById('btnDone3').onclick = () => {
-    if (todoLastClickedNode) {
-      const realNode = graphData.nodes.find(n => n.id === todoLastClickedNode.id);
-      if (realNode) selectedNode = realNode;
-    }
-    toggleDoneStatus();
-  };
-  document.getElementById('btnSyncTodos3').onclick = () => saveTodos();
-}
-
-// todoSelectedNode / todoLastClickedNode 已在 启动代码 前声明
-
-function renderTodo() {
-  const data = getTodoData();
-  console.log('[renderTodo] 节点数:', data.nodes.length, '连线数:', data.links.length, '节点列表:', data.nodes.map(n => ({id: n.id, label: n.label, cat: n.cat})));
-  if (data.nodes.length === 0) {
-    todoG.selectAll('*').remove();
-    todoG.append('text')
-      .attr('x', todoWidth / 2).attr('y', todoHeight / 2)
-      .attr('text-anchor', 'middle').attr('fill', '#565f89').attr('font-size', '16px')
-      .text('📋 还没有待办 · 点"➕ 主任务"加一个');
-    return;
-  }
-
-  // 链接
-  const link = todoG.selectAll('line.link').data(data.links, d => `${(typeof d.source === 'object' ? d.source.id : d.source)}-${(typeof d.target === 'object' ? d.target.id : d.target)}`);
-  link.exit().remove();
-  link.enter().append('line').attr('class', 'link').attr('stroke', '#3b3d57').attr('stroke-width', 1.5)
-    .merge(link).attr('stroke', d => d.label === '派发' ? '#ff9e64' : d.label === '分解' ? '#7dcfff' : '#565f89');
-
-  // 节点（统一视觉：与脑图同款：hover 光晕 + 字号按 size 缩放 + 类别描边色）
-  const node = todoG.selectAll('circle.todo-node').data(data.nodes, d => d.id);
-  node.exit().remove();
-  const nodeEnter = node.enter().append('circle').attr('class', 'todo-node');
-  nodeEnter.merge(node)
-    .attr('r', d => d.size)
-    .attr('fill', d => categories[d.cat] ? categories[d.cat].color : '#565f89')
-    .attr('stroke', d => categories[d.cat] ? categories[d.cat].color : '#565f89')
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.4)
-    .style('cursor', 'pointer')
-    .style('transition', 'filter 0.2s')
-    .on('mouseover', function() { d3.select(this).style('filter', 'drop-shadow(0 0 12px rgba(122,162,247,0.6))'); })
-    .on('mouseout', function(d) { d3.select(this).style('filter', null).attr('stroke', categories[d.cat] ? categories[d.cat].color : '#565f89').attr('stroke-width', 1.5); })
-    .on('click', (e, d) => {
-      todoLastClickedNode = d;
-      todoSelectedNode = d;
-      // 同步给脑图侧
-      if (typeof selectedNode !== 'undefined') {
-        // 用 d3 直接选脑图节点描边
-        try { d3.selectAll('g.node-g .node-circle').attr('stroke', n => n === d ? '#fff' : (categories[n.cat]?.color || '#414868')); } catch(_){}
-      }
-      // 高亮待办自己
-      todoG.selectAll('circle.todo-node').attr('stroke-width', 1.5).attr('stroke-opacity', 0.4);
-      d3.select(e.currentTarget).attr('stroke', '#fff').attr('stroke-width', 3).attr('stroke-opacity', 1);
-      toast(`选中: ${d.label}（${d.status || 'no status'}）`);
-    });
-
-  // 标签（字号按 size 缩放，文字描边 = 背景色，可读性优先）
-  const label = todoG.selectAll('text.todo-label').data(data.nodes, d => d.id);
-  label.exit().remove();
-  const labelEnter = label.enter().append('text').attr('class', 'todo-label').attr('text-anchor', 'middle');
-  labelEnter.merge(label)
-    .attr('dy', 4)
-    .attr('font-size', d => Math.max(10, Math.min(16, d.size * 0.55)) + 'px')
-    .attr('font-weight', d => d.cat === 'boss' ? 700 : d.cat === 'subtask' ? 400 : 600)
-    .attr('fill', d => d.cat === 'boss' ? '#1a1b26' : '#c0caf5')
-    .attr('paint-order', 'stroke')
-    .attr('stroke', '#1a1b26')
-    .attr('stroke-width', d => d.cat === 'boss' ? 0 : 3)
-    .attr('stroke-linejoin', 'round')
-    .text(d => d.label.length > 14 ? d.label.substring(0, 14) + '…' : d.label);
-
-  // 力导向（专门跑待办节点的）
-  if (todoSimulation) todoSimulation.stop();
-  todoSimulation = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links).id(d => d.id).distance(d => d.label === '派发' ? 140 : 80).strength(0.5))
-    .force('charge', d3.forceManyBody().strength(-400))
-    .force('center', d3.forceCenter(todoWidth / 2, todoHeight / 2))
-    .force('collision', d3.forceCollide().radius(d => d.size + 15))
-    .on('tick', () => {
-      todoG.selectAll('line.link')
-        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-      todoG.selectAll('circle.node-circle').attr('cx', d => d.x).attr('cy', d => d.y);
-      todoG.selectAll('text.node-label').attr('x', d => d.x).attr('y', d => d.y);
-    });
-}
 </script>
 </body>
 </html>
